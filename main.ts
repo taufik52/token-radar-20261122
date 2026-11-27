@@ -3,7 +3,7 @@
 // Reads the sealed snapshot, scores every pre-token protocol with the
 // launch-odds model in lib/model.ts, and writes the graded outputs:
 //
-//   /output/board.json    the ranked board (200 rows)
+//   /output/board.json    the ranked board (178 rows: every eligible pre-token protocol)
 //   /output/data.js       the same rows for the dashboard, as window.RADAR
 //   /output/dashboard/   a copy of this repo's dashboard/
 //   /output/screenshots/ a copy of this repo's screenshots/

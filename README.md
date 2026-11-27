@@ -4,17 +4,18 @@
 [![rank](https://make.fun/badge/token-radar-01/taufik52/token-radar-20261122/rank.svg)](https://make.fun/bounty/token-radar-01/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=token-radar-01)
 [![reward](https://make.fun/badge/token-radar-01/taufik52/token-radar-20261122/reward.svg)](https://make.fun/bounty/token-radar-01?utm_source=github&utm_medium=readme&utm_campaign=token-radar-01)
 
-Entry for the [make.fun](https://make.fun/) bounty **token-radar-01** — build the best token launch radar. The program reads a sealed DefiLlama snapshot (758 protocols, as of 2026-11-14) and writes a dashboard that ranks the 200 most promising pre-token protocols by implied launch value, each with a concrete farm plan.
+Entry for the [make.fun](https://make.fun/) bounty **token-radar-01** — build the best token launch radar. The program reads a sealed DefiLlama snapshot (758 protocols, as of 2026-11-14) and writes a dashboard that ranks the 178 pre-token protocols the house rule leaves eligible, by implied launch value, each with a concrete farm plan — and names the 164 pre-token protocols it leaves out, with the reason each.
 
 ## What it does
 
-- **Covers the whole watchlist** — all 40 protocols at or above the $50M TVL floor that record no token — plus the 160 largest pre-token protocols below the floor, found early by the radar.
-- **Ranks by implied value, not TVL alone** — the `launch-odds-2` model separates *potential* (what a launch could be worth) from *launch probability* (how launch-shaped the record looks), then multiplies them.
+- **Covers the whole watchlist** — all 40 protocols at or above the $50M TVL floor that record no token — plus the 138 other pre-token protocols in the snapshot the house rule leaves eligible. That is the whole eligible set: 178 rows, not a top-N cut.
+- **Ranks by implied value, not TVL alone** — the `launch-odds-3` model separates *potential* (what a launch could be worth) from *launch probability* (how launch-shaped the record looks), then multiplies them.
+- **Names what it leaves out** — the 164 pre-token protocols the board does not rank appear in the dashboard's “Not ranked” tab with the reason each: wrapped, staked or bridged products of a token that already trades (91), centralised exchanges (42), versioned pools of another protocol (11), and protocols the house watchlist rule leaves out (20). The snapshot carries no `parentProtocol` field, so for that last group the entry follows the house list's verdict instead of re-admitting a protocol on its own guess — ranking one would repeat the WBTC error (a wrapped product is not a launch).
 - **Shows a farm plan for every row** — 6 steps each, with capital, gas cost, and time, derived from the protocol's category, chains, TVL, and age.
 - **Keeps live-token protocols apart** — protocols whose token already trades appear in a separate tab with their market cap, never mixed into the pre-token ranking.
 - **Fully offline dashboard** — sortable board, search, category / chain / risk filters, watchlist toggle, and a detail view for every protocol with the full model breakdown. No network requests.
 
-## The model (launch-odds-2)
+## The model (launch-odds-3)
 
 ```
 implied = round( launchProb × TVL × sector
@@ -39,12 +40,12 @@ Requires Node.js 22.18+ (the repo runs on Node 24 in this workspace). The snapsh
 mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts --input <path-to>/snapshot.json
 ```
 
-That writes `out/board.json` (200 rows), `out/data.js`, `out/dashboard/`, `out/screenshots/`, and `out/dossier.json`. The program is deterministic: two runs write byte-identical outputs. Standard library only — nothing to install.
+That writes `out/board.json` (178 rows), `out/data.js`, `out/dashboard/`, `out/screenshots/`, and `out/dossier.json`. The program is deterministic: two runs write byte-identical outputs. Standard library only — nothing to install.
 
 ## Layout
 
 - `main.ts` — entry point: reads the snapshot, writes the outputs, builds the dossier
-- `lib/model.ts` — the launch-odds-2 model, board builder, farm plans
+- `lib/model.ts` — the launch-odds-3 model, board builder, farm plans, and the not-ranked list
 - `vendor/makefun-board.ts` — make.fun's dossier library (from the kit, unchanged)
 - `dashboard/` — the offline page (`index.html`, `app.css`, `app.js`)
 - `screenshots/` — board, detail, and filtered views of the dashboard

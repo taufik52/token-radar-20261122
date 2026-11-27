@@ -1,4 +1,4 @@
-// Token Radar model v2 ("launch-odds"): snapshot figures in, ranked board out.
+// Token Radar model v3 ("launch-odds"): snapshot figures in, ranked board out.
 //
 // The board ranks pre-token protocols by IMPLIED VALUE, and the model keeps two
 // ideas apart instead of blending them into one TVL multiple:
@@ -6,6 +6,22 @@
 //   potential  = what a launch could be worth IF it happens
 //   launchProb = how likely a launch looks from the record alone
 //   implied    = round(launchProb * potential)
+//
+// v3's change is coverage, not the formula: v2 ranked 200 rows but 48 of them
+// were wrapped, staked or bridged products of a token that already trades
+// (a liquid-staking receipt, a bridge, an exchange's staked SOL), which the
+// bounty brief says are not launches at all, and it missed 20 above-floor
+// protocols the house watchlist leaves out. v3 ranks EVERY protocol the entry
+// can verify as eligible — the whole 40-protocol watchlist plus all 138 other
+// clean pre-token protocols in the snapshot (178 rows) — and names every other
+// pre-token protocol it leaves out, with the reason, in the dashboard's
+// "Not ranked" tab (164 rows: 91 wrapped/staked/bridged, 42 exchanges,
+// 11 versioned pools, 20 left out by the house watchlist rule). The snapshot
+// carries no parentProtocol field, so for a protocol the house rule leaves out
+// the entry follows the house list's verdict instead of re-admitting it on
+// its own guess: a protocol the rule leaves out may be a parent protocol's
+// product (Circle Gateway, USDCx), and ranking one would repeat the WBTC
+// error the brief warns about.
 //
 // Potential starts from TVL, because a token's value tracks the economic base it
 // would govern. The multiple depends on the protocol's CATEGORY CLASS (a coarse,
@@ -103,10 +119,16 @@ export const MODEL: ModelConstants = {
   size_span_log10: 2,
 };
 
-export const MODEL_VERSION = 'launch-odds-2';
+export const MODEL_VERSION = 'launch-odds-3';
 
-/** How many pre-token protocols below the watchlist floor the early radar carries, by TVL. */
-export const EARLY_ROWS = 160;
+/** Every pre-token protocol the board leaves out, with the reason, for the dashboard's "Not ranked" tab. */
+export interface ExcludedRow {
+  slug: string;
+  name: string;
+  category: string | null;
+  tvl_usd: number;
+  reason: string;
+}
 
 /** How many live-token protocols the Live token view carries, by market cap. */
 export const LIVE_ROWS = 24;
@@ -196,6 +218,8 @@ export interface RadarData {
   board_size: number;
   early_size: number;
   live_size: number;
+  excluded: ExcludedRow[];
+  excluded_size: number;
   rows: RadarRow[];
   live: LiveRow[];
 }
@@ -326,9 +350,58 @@ export function isPreToken(p: SnapshotProtocol): boolean {
   return p.mcap_usd === null && p.gecko_id === null && p.symbol === null;
 }
 
-/** Whether a protocol is one the board may rank: pre-token, not an exchange, not a versioned pool. */
-export function isRankable(p: SnapshotProtocol): boolean {
-  return isPreToken(p) && p.category !== 'CEX' && !VERSIONED.test(p.name);
+/** Categories the house watchlist rule names as wrapped, staked or bridged products. */
+const WRAP_CATEGORIES = new Set(['Bridge', 'Canonical Bridge', 'Liquid Staking', 'Liquid Restaking', 'Restaked BTC']);
+
+/** Exchange names the house watchlist rule names as branded products. */
+const EXCHANGE_PREFIXES = ['Binance', 'Coinbase', 'Bybit', 'Kraken', 'Bitget', 'OKX', 'Bitfinex', 'Gemini'];
+
+/** A whole word in a name that marks a wrapped, staked or bridged product. */
+const NAME_WORD = /\b(wrapped|staked|staking)\b/i;
+
+/**
+ * Why a pre-token protocol is not one the board may rank, or null when it is
+ * eligible. This is the house watchlist rule from the kit's input/README.md,
+ * applied to every protocol instead of only the watchlist: a wrapped, staked
+ * or bridged product of a token that already trades is not a launch, a
+ * centralised exchange is not one either, and a versioned pool is a pool of
+ * another protocol. The last clause follows the house list itself: a protocol
+ * at or above the floor that the house rule leaves out stays out, because the
+ * rule also reads parentProtocol, which the snapshot does not carry — the
+ * entry cannot verify such a protocol is not a parent's product, so it does
+ * not re-admit it on its own guess.
+ */
+export function exclusionReason(p: SnapshotProtocol, snapshot: Snapshot): string | null {
+  if (p.category === 'CEX') return 'centralized exchange';
+  if (VERSIONED.test(p.name)) return 'versioned pool of another protocol';
+  if (p.category !== null && WRAP_CATEGORIES.has(p.category)) return 'wrapped, staked or bridged product';
+  if (NAME_WORD.test(p.name)) return 'wrapped, staked or bridged product';
+  if (EXCHANGE_PREFIXES.some((e) => p.name.startsWith(e))) return 'exchange-branded product';
+  if (p.tvl_usd >= snapshot.floor_usd && !snapshot.watchlist.includes(p.slug)) {
+    return 'left out by the house watchlist rule (parent product)';
+  }
+  return null;
+}
+
+/** Whether a protocol is one the board may rank: pre-token and not excluded by the house rule. */
+export function isRankable(p: SnapshotProtocol, snapshot: Snapshot): boolean {
+  return isPreToken(p) && exclusionReason(p, snapshot) === null;
+}
+
+/** Every pre-token protocol the board leaves out, largest TVL first, with its reason. */
+export function excludedRows(snapshot: Snapshot): ExcludedRow[] {
+  return snapshot.protocols
+    .filter((p) => isPreToken(p))
+    .map((p) => ({ p, reason: exclusionReason(p, snapshot) }))
+    .filter((x): x is { p: SnapshotProtocol; reason: string } => x.reason !== null)
+    .sort((a, b) => b.p.tvl_usd - a.p.tvl_usd || (a.p.slug < b.p.slug ? -1 : a.p.slug > b.p.slug ? 1 : 0))
+    .map((x) => ({
+      slug: x.p.slug,
+      name: x.p.name,
+      category: x.p.category,
+      tvl_usd: x.p.tvl_usd,
+      reason: x.reason,
+    }));
 }
 
 function bySlug(protocols: SnapshotProtocol[]): Map<string, SnapshotProtocol> {
@@ -344,9 +417,8 @@ export function buildBoard(snapshot: Snapshot, model: ModelConstants = MODEL): B
     if (p !== undefined) chosen.set(slug, p);
   }
   const early = snapshot.protocols
-    .filter((p) => !chosen.has(p.slug) && isRankable(p) && p.tvl_usd < snapshot.floor_usd)
-    .sort((a, b) => b.tvl_usd - a.tvl_usd || (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0))
-    .slice(0, EARLY_ROWS);
+    .filter((p) => !chosen.has(p.slug) && isRankable(p, snapshot))
+    .sort((a, b) => b.tvl_usd - a.tvl_usd || (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0));
   for (const p of early) chosen.set(p.slug, p);
 
   const scored = [...chosen.values()].map((p) => ({ p, s: scoreProtocol(p, snapshot.as_of, model) }));
@@ -442,6 +514,30 @@ function actionFor(p: SnapshotProtocol, capital: number, chain: string): string 
   }
   if (c.includes('insurance')) {
     return `Buy $${capital} of cover from ${name} on ${chain} and keep the policy active for the full hold period.`;
+  }
+  if (c.includes('basis trad')) {
+    return `Open a $${capital} basis trade on ${name} (${chain}): hold the long spot leg and the short perpetual leg together, and close both legs at once when you unwind.`;
+  }
+  if (c.includes('cedefi')) {
+    return `Deposit $${capital} of USDC into the main ${name} CeDeFi vault on ${chain} and keep the vault position in the same wallet for the full hold.`;
+  }
+  if (c.includes('chain')) {
+    return `Bridge $${capital} of USDC to ${name} (${chain}) and use it in the chain's flagship app every week, keeping the funds on the chain for the full hold.`;
+  }
+  if (c.includes('anchor btc') || c.includes('decentralized btc')) {
+    return `Mint or hold $${capital} of the BTC-pegged asset issued through ${name} on ${chain} and keep it in the same wallet for the full hold.`;
+  }
+  if (c.includes('payment')) {
+    return `Route $${capital} through ${name} on ${chain}: make one real payment a week through it and keep the balance in the same wallet.`;
+  }
+  if (c.includes('governance incentive')) {
+    return `Lock or stake $${capital} through ${name} on ${chain} to earn governance incentives, and vote on at least one proposal during the hold.`;
+  }
+  if (c.includes('card')) {
+    return `Load the ${name} card with $${capital} of USDC on ${chain} and spend from it every week for the full hold.`;
+  }
+  if (c.includes('farm')) {
+    return `Deposit $${capital} of USDC into the main ${name} farm on ${chain} and keep the LP or vault tokens staked for the full hold.`;
   }
   return `Use ${name} on ${chain} with $${capital} of USDC: deposit it in the protocol's main product and keep the position open.`;
 }
@@ -541,6 +637,7 @@ export function radarRow(row: BoardRow): RadarRow {
 export function buildRadar(snapshot: Snapshot, model: ModelConstants = MODEL): { board: BoardRow[]; radar: RadarData } {
   const board = buildBoard(snapshot, model);
   const live = liveRows(snapshot);
+  const excluded = excludedRows(snapshot);
   const early = board.filter((r) => !snapshot.watchlist.includes(r.slug)).length;
   const radar: RadarData = {
     as_of: snapshot.as_of,
@@ -553,6 +650,8 @@ export function buildRadar(snapshot: Snapshot, model: ModelConstants = MODEL): {
     board_size: board.length,
     early_size: early,
     live_size: live.length,
+    excluded,
+    excluded_size: excluded.length,
     rows: board.map(radarRow),
     live,
   };

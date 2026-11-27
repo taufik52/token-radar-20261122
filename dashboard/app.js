@@ -56,6 +56,7 @@
     if (params.get('risk')) state.risk = params.get('risk');
     if (params.get('wl') === '1') state.wl = true;
     if (params.get('tab') === 'live') state.tab = 'live';
+    if (params.get('tab') === 'excluded') state.tab = 'excluded';
     if (params.get('p')) state.selected = params.get('p');
     if (params.get('sort')) state.sort = params.get('sort');
   }
@@ -67,6 +68,7 @@
     if (state.risk !== 'all') p.set('risk', state.risk);
     if (state.wl) p.set('wl', '1');
     if (state.tab === 'live') p.set('tab', 'live');
+    if (state.tab === 'excluded') p.set('tab', 'excluded');
     if (state.selected) p.set('p', state.selected);
     if (state.sort !== 'rank') p.set('sort', state.sort);
     var next = p.toString();
@@ -138,6 +140,30 @@
     });
   }
 
+  function excludedRows() {
+    rowsEl.textContent = '';
+    var q = state.q.trim().toLowerCase();
+    var list = (DATA.excluded || []).filter(function (r) {
+      if (!q) return true;
+      return [r.name, r.slug, r.category, r.reason].join(' ').toLowerCase().indexOf(q) >= 0;
+    });
+    list.forEach(function (r) {
+      rowsEl.appendChild(el('tr', { tabindex: '0' },
+        el('td', { class: 'num', text: '—' }),
+        el('td', null, el('div', { class: 'name' }, el('b', { text: r.name }),
+          el('span', { class: 'sub', text: (r.category || 'Other') + ' · ' + r.reason }))),
+        el('td', { class: 'num', text: fmtUsd(r.tvl_usd) }),
+        el('td', { class: 'num', text: '—' }),
+        el('td', { class: 'num', text: '—' }),
+        el('td', { class: 'num', text: '—' }),
+        el('td', null, el('span', { class: 'num', text: '—' })),
+        el('td', { class: 'num', text: '—' }),
+        el('td', null, el('span', { class: 'pill pre', text: 'not ranked' }))
+      ));
+    });
+    return list.length;
+  }
+
   function liveRows() {
     rowsEl.textContent = '';
     DATA.live.forEach(function (r) {
@@ -175,7 +201,7 @@
       el('button', { class: 'close', type: 'button', 'aria-label': 'Close details', text: 'Close', onclick: function () { dialog.close(); } })
     ));
     dialog.appendChild(el('div', { class: 'detail-sec' },
-      el('h3', { text: 'Model breakdown — launch-odds-2' }),
+      el('h3', { text: 'Model breakdown — ' + DATA.model_version }),
       el('div', { class: 'grid' },
         el('div', null, el('span', { text: 'TVL' }), el('b', { text: fmtUsd(row.tvl_usd) })),
         el('div', null, el('span', { text: '7-day growth' }), el('b', { text: fmtPct(row.change_7d) })),
@@ -214,6 +240,7 @@
       ['Watchlist covered', DATA.watchlist_size + ' / ' + DATA.watchlist_size],
       ['Pre-token rows', String(DATA.board_size)],
       ['Early rows below floor', String(DATA.early_size)],
+      ['Not ranked (named)', String(DATA.excluded_size || 0)],
       ['Top implied value', top ? fmtUsd(top.implied_value_usd) : 'n/a']
     ].forEach(function (f) {
       facts.appendChild(el('div', { class: 'fact' }, el('span', { text: f[0] }), el('b', { text: f[1] })));
@@ -225,14 +252,25 @@
     document.getElementById('prov-text').textContent =
       'Data: DefiLlama protocol index, fetched once for this snapshot (' + DATA.as_of + '), floor $' +
       Math.round(DATA.floor_usd / 1e6) + 'M. Source record: ' + DATA.source + '. ' +
-      DATA.rows.length + ' pre-token rows ranked; ' + DATA.live.length + ' live-token protocols set aside with market caps. No live data is fetched: the page is a static snapshot of that one fetch.';
+      DATA.rows.length + ' pre-token rows ranked; ' + (DATA.excluded_size || 0) + ' pre-token protocols named as not ranked, with the reason each; ' +
+      DATA.live.length + ' live-token protocols set aside with market caps. No live data is fetched: the page is a static snapshot of that one fetch.';
   }
 
   function render() {
+    document.getElementById('board-wrap').classList.toggle('excluded-view', state.tab === 'excluded');
+    document.getElementById('tab-pre').textContent = 'Pre-token · ' + DATA.board_size;
+    document.getElementById('tab-live').textContent = 'Already trades';
+    document.getElementById('tab-excluded').textContent = 'Not ranked · ' + (DATA.excluded_size || 0);
     document.getElementById('tab-pre').setAttribute('aria-selected', state.tab === 'pre-token' ? 'true' : 'false');
     document.getElementById('tab-live').setAttribute('aria-selected', state.tab === 'live' ? 'true' : 'false');
+    document.getElementById('tab-excluded').setAttribute('aria-selected', state.tab === 'excluded' ? 'true' : 'false');
     document.querySelector('#board thead button[data-sort="implied"]').textContent = state.tab === 'live' ? 'Market cap' : 'Implied value';
-    if (state.tab === 'live') {
+    if (state.tab === 'excluded') {
+      var shown = excludedRows();
+      emptyEl.hidden = shown > 0;
+      countEl.textContent = shown + ' of ' + (DATA.excluded_size || 0) + ' not-ranked protocols';
+      document.querySelector('#board caption').textContent = 'Pre-token protocols the board does not rank, with the reason each. A wrapped, staked or bridged product of a token that already trades is not a launch.';
+    } else if (state.tab === 'live') {
       liveRows();
       emptyEl.hidden = true;
       countEl.textContent = DATA.live.length + ' live-token protocols';
@@ -265,6 +303,7 @@
     document.getElementById('watchlist-only').addEventListener('change', function (e) { state.wl = e.target.checked; render(); });
     document.getElementById('tab-pre').addEventListener('click', function () { state.tab = 'pre-token'; render(); });
     document.getElementById('tab-live').addEventListener('click', function () { state.tab = 'live'; render(); });
+    document.getElementById('tab-excluded').addEventListener('click', function () { state.tab = 'excluded'; render(); });
     document.getElementById('clear').addEventListener('click', function () {
       state.q = ''; state.category = 'all'; state.chain = 'all'; state.risk = 'all'; state.wl = false;
       document.getElementById('q').value = ''; document.getElementById('category').value = 'all';

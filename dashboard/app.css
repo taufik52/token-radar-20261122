@@ -56,6 +56,13 @@ td.num{text-align:right}
 .pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:.78rem;font-weight:700}
 .pill.low{background:#0f2f26;color:var(--good)} .pill.med{background:#33270e;color:var(--warn)} .pill.high{background:#3a1717;color:var(--bad)}
 .pill.pre{background:#12283d;color:var(--accent2)}
+/* Not-ranked view: the model columns are all "—" there, so hide them and keep
+   Rank / Protocol / TVL / Risk on screen. */
+.excluded-view th:nth-child(4),.excluded-view td:nth-child(4),
+.excluded-view th:nth-child(5),.excluded-view td:nth-child(5),
+.excluded-view th:nth-child(6),.excluded-view td:nth-child(6),
+.excluded-view th:nth-child(7),.excluded-view td:nth-child(7),
+.excluded-view th:nth-child(8),.excluded-view td:nth-child(8){display:none}
 .empty{padding:28px;text-align:center}
 .empty h2{margin:0 0 6px}
 .button{border:0;border-radius:8px;padding:10px 16px;font:inherit;cursor:pointer}

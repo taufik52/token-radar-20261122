@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Token Radar — pre-token protocols ranked by implied launch value</title>
-<meta name="description" content="A token launch radar: 200 pre-token protocols ranked by implied value, each with a farm plan. Snapshot: DefiLlama, 2026-11-14. Fully offline.">
+<meta name="description" content="A token launch radar: 178 pre-token protocols ranked by implied value, each with a farm plan. Snapshot: DefiLlama, 2026-11-14. Fully offline.">
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
@@ -12,7 +12,7 @@
 <div class="shell">
   <header class="top">
     <div class="brand"><span class="mark" aria-hidden="true">◉</span><span class="brand-name">Token Radar</span><span class="tag">token-radar-01</span></div>
-    <div class="top-meta"><span id="snap-date">Snapshot —</span><span>DefiLlama protocol index</span><span id="model-tag">launch-odds-2</span></div>
+    <div class="top-meta"><span id="snap-date">Snapshot —</span><span>DefiLlama protocol index</span><span id="model-tag">launch-odds-3</span></div>
   </header>
 
   <section class="lede">
@@ -30,8 +30,9 @@
     <div class="field"><label for="risk">Risk</label><select id="risk"><option value="all">Any risk</option><option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option></select></div>
     <div class="field check"><label><input type="checkbox" id="watchlist-only"> Watchlist only</label></div>
     <div class="tabs" role="tablist" aria-label="Token status">
-      <button type="button" id="tab-pre" role="tab" aria-selected="true">Pre-token · 200</button>
+      <button type="button" id="tab-pre" role="tab" aria-selected="true">Pre-token · 178</button>
       <button type="button" id="tab-live" role="tab" aria-selected="false">Already trades</button>
+      <button type="button" id="tab-excluded" role="tab" aria-selected="false">Not ranked · 164</button>
     </div>
     <span class="count" id="count"></span>
   </section>
@@ -71,7 +72,7 @@
       <li><b>Implied value.</b> Launch odds × potential, rounded to whole dollars. Rank 1 is the highest.</li>
       <li><b>Confidence &amp; risk.</b> Confidence rises when growth and listing date are reported and falls on thin records or extreme growth. Risk rises for very young, single-chain, or sharply shrinking protocols.</li>
     </ol>
-    <p class="sub">The watchlist is the floor, never the ceiling: all 40 protocols at or above the $50M floor with no token on record are ranked, plus the 160 largest pre-token protocols below the floor. Protocols whose token already trades are set aside in the “Already trades” tab with their market cap — the market’s own value, never a model’s.</p>
+    <p class="sub">The watchlist is the floor, never the ceiling: all 40 protocols at or above the $50M floor with no token on record are ranked, plus the 138 other pre-token protocols the house rule leaves eligible — every one of them, not a top-N cut. That is the whole eligible set in this snapshot: 178 rows. The 164 pre-token protocols the rule leaves out are named with their reason in the “Not ranked” tab (wrapped, staked or bridged products, exchanges, versioned pools, and protocols the house watchlist rule leaves out). Protocols whose token already trades are set aside in the “Already trades” tab with their market cap — the market’s own value, never a model’s.</p>
   </section>
 
   <section class="panel prov" id="provenance">
@@ -80,7 +81,7 @@
     <p class="sub">This page is fully offline: it reads only the data file written beside it and makes no network request. Farm plans are generic steps derived from each protocol’s category, chains, TVL, and age; they state costs and times, and they never claim a points program, a launch date, or funding the snapshot does not carry. Farming costs gas and can lose money — never farm with funds you cannot afford to lose, and never pay anyone to claim an airdrop.</p>
   </section>
 
-  <footer class="foot"><span>Token Radar · model launch-odds-2 · built for make.fun token-radar-01</span><span>Implied value is an estimate, not financial advice.</span></footer>
+  <footer class="foot"><span>Token Radar · model launch-odds-3 · built for make.fun token-radar-01</span><span>Implied value is an estimate, not financial advice.</span></footer>
 </div>
 
 <dialog class="detail" id="detail" aria-labelledby="detail-title"></dialog>
